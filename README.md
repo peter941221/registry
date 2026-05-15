@@ -4,7 +4,7 @@
 [![npm](https://img.shields.io/npm/v/@w3-kit/registry)](https://www.npmjs.com/package/@w3-kit/registry)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
 
-Chain, token, and ABI registry for web3 development.
+Chain, token, Solana program, and ABI registry for web3 development.
 
 ## Install
 
@@ -15,7 +15,14 @@ npm install @w3-kit/registry
 ## Usage
 
 ```ts
-import { getChain, getToken, getAllChains, getChainsByEcosystem } from "@w3-kit/registry";
+import {
+  getChain,
+  getToken,
+  getAllChains,
+  getChainsByEcosystem,
+  getSolanaProgram,
+  getSolanaProgramByAddress,
+} from "@w3-kit/registry";
 
 // Get a chain by ID
 const ethereum = getChain(1);
@@ -25,6 +32,15 @@ const evmChains = getChainsByEcosystem("evm");
 
 // Get a token by symbol
 const usdc = getToken("USDC");
+
+// Get a Solana program by key
+const splTokenProgram = getSolanaProgram("spl-token");
+
+// Reverse lookup a Solana program deployment
+const raydium = getSolanaProgramByAddress(
+  "675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8",
+  "mainnet-beta",
+);
 ```
 
 ## Validation
@@ -39,19 +55,30 @@ The validator checks schema shape, URLs, chain references, duplicate identifiers
 
 ## API
 
-| Function | Description |
-|----------|-------------|
-| `getAllChains()` | Get all chains |
-| `getChain(chainId)` | Get chain by ID |
-| `getChainsByEcosystem(eco)` | Filter chains by ecosystem |
-| `getAllTokens()` | Get all tokens |
-| `getToken(symbol)` | Get token by symbol |
-| `getTokensByChain(chainId)` | Get tokens on a chain |
+| Function                                        | Description                                |
+| ----------------------------------------------- | ------------------------------------------ |
+| `getAllChains()`                                | Get all chains                             |
+| `getChain(chainId)`                             | Get chain by ID                            |
+| `getChainsByEcosystem(eco)`                     | Filter chains by ecosystem                 |
+| `getAllTokens()`                                | Get all tokens                             |
+| `getToken(symbol)`                              | Get token by symbol                        |
+| `getTokensByChain(chainId)`                     | Get tokens on a chain                      |
+| `getAllSolanaPrograms()`                        | Get all registered Solana programs         |
+| `getSolanaProgram(key)`                         | Get Solana program by stable key           |
+| `getSolanaProgramsByCluster(cluster)`           | Filter Solana programs by cluster          |
+| `getSolanaProgramByAddress(programId, cluster)` | Reverse lookup a Solana program deployment |
 
 ## Types
 
 ```ts
-import type { Chain, Token, ChainId, Address } from "@w3-kit/registry";
+import type {
+  Chain,
+  Token,
+  SolanaProgram,
+  SolanaCluster,
+  ChainId,
+  Address,
+} from "@w3-kit/registry";
 ```
 
 ## Architecture

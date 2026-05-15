@@ -1,14 +1,17 @@
 import chainsData from "../../data/chains.json" with { type: "json" };
+import solanaProgramsData from "../../data/solana-programs.json" with { type: "json" };
 import tokensData from "../../data/tokens.json" with { type: "json" };
 import type { Chain } from "../domain/entities/chain.js";
+import type { SolanaProgram } from "../domain/entities/solana-program.js";
 import type { Token } from "../domain/entities/token.js";
 import { ZodError, type ZodIssue } from "zod";
 import { chainSchema } from "./schemas/chain-schema.js";
 import { isValidIdentifierForEcosystem, nonEmptyStringSchema } from "./schemas/shared.js";
+import { solanaProgramSchema } from "./schemas/solana-program-schema.js";
 import { tokenSchema } from "./schemas/token-schema.js";
 
 export interface ValidationIssue {
-  file: "chains.json" | "tokens.json";
+  file: "chains.json" | "solana-programs.json" | "tokens.json";
   path: string;
   message: string;
   severity: "error";
@@ -16,12 +19,14 @@ export interface ValidationIssue {
 
 export interface RegistryDataInput {
   chains: unknown;
+  solanaPrograms: unknown;
   tokens: unknown;
 }
 
 export function validateRegistry() {
   return validateRegistryData({
     chains: chainsData,
+    solanaPrograms: solanaProgramsData,
     tokens: tokensData,
   });
 }
@@ -29,13 +34,21 @@ export function validateRegistry() {
 export function validateRegistryData(data: RegistryDataInput) {
   const issues: ValidationIssue[] = [];
   const parsedChains = parseFile("chains.json", data.chains, chainSchema, issues);
+  const parsedSolanaPrograms = parseFile(
+    "solana-programs.json",
+    data.solanaPrograms,
+    solanaProgramSchema,
+    issues,
+  );
   const parsedTokens = parseFile("tokens.json", data.tokens, tokenSchema, issues);
 
-  if (!parsedChains || !parsedTokens) {
+  if (!parsedChains || !parsedSolanaPrograms || !parsedTokens) {
     return issues;
   }
 
   validateChainUniqueness(parsedChains, issues);
+  validateSolanaProgramUniqueness(parsedSolanaPrograms, issues);
+  validateSolanaProgramDeployments(parsedChains, parsedSolanaPrograms, issues);
   validateTokenUniqueness(parsedTokens, issues);
   validateTokenChainReferences(parsedChains, parsedTokens, issues);
 
@@ -95,6 +108,108 @@ function validateTokenUniqueness(tokens: Token[], issues: ValidationIssue[]) {
     messageSelector: (value) => `Duplicate symbol "${value}"`,
     issues,
     normalize: (value) => value.toUpperCase(),
+  });
+}
+
+function validateSolanaProgramUniqueness(
+  solanaPrograms: SolanaProgram[],
+  issues: ValidationIssue[],
+) {
+  addDuplicateIssues({
+    file: "solana-programs.json",
+    entries: solanaPrograms,
+    keySelector: (program) => program.key,
+    pathSelector: (index) => `[${index}].key`,
+    messageSelector: (value) => `Duplicate program key "${value}"`,
+    issues,
+    normalize: (value) => value.toLowerCase(),
+  });
+}
+
+function validateSolanaProgramDeployments(
+  chains: Chain[],
+  solanaPrograms: SolanaProgram[],
+  issues: ValidationIssue[],
+) {
+  const chainsById = new Map<number, Chain>(chains.map((chain) => [chain.chainId, chain]));
+  const seenDeployments = new Map<string, number>();
+
+  solanaPrograms.forEach((program, programIndex) => {
+    const seenProgramClusters = new Set<string>();
+
+    program.deployments.forEach((deployment, deploymentIndex) => {
+      const chain = chainsById.get(deployment.chainId);
+      if (!chain) {
+        issues.push(
+          createIssue(
+            "solana-programs.json",
+            `[${programIndex}].deployments[${deploymentIndex}].chainId`,
+            `Unknown chainId "${deployment.chainId}" for program "${program.key}"`,
+          ),
+        );
+        return;
+      }
+
+      if (chain.ecosystem !== "solana") {
+        issues.push(
+          createIssue(
+            "solana-programs.json",
+            `[${programIndex}].deployments[${deploymentIndex}].chainId`,
+            `Program deployment must reference a Solana chain, received ecosystem "${chain.ecosystem}"`,
+          ),
+        );
+      }
+
+      if (
+        (deployment.cluster === "mainnet-beta" && chain.testnet) ||
+        (deployment.cluster === "devnet" && !chain.testnet)
+      ) {
+        issues.push(
+          createIssue(
+            "solana-programs.json",
+            `[${programIndex}].deployments[${deploymentIndex}].cluster`,
+            `Cluster "${deployment.cluster}" does not match chainId "${deployment.chainId}"`,
+          ),
+        );
+      }
+
+      const deploymentKey = `${deployment.cluster}:${deployment.programId}`;
+      const existingOwner = seenDeployments.get(deploymentKey);
+      if (existingOwner !== undefined) {
+        issues.push(
+          createIssue(
+            "solana-programs.json",
+            `[${programIndex}].deployments[${deploymentIndex}].programId`,
+            `Duplicate deployment "${deploymentKey}" across Solana programs`,
+          ),
+        );
+      } else {
+        seenDeployments.set(deploymentKey, programIndex);
+      }
+
+      const clusterChainKey = `${deployment.cluster}:${deployment.chainId}`;
+      if (seenProgramClusters.has(clusterChainKey)) {
+        issues.push(
+          createIssue(
+            "solana-programs.json",
+            `[${programIndex}].deployments[${deploymentIndex}].cluster`,
+            `Duplicate deployment cluster/chain pair "${clusterChainKey}" in program "${program.key}"`,
+          ),
+        );
+      } else {
+        seenProgramClusters.add(clusterChainKey);
+      }
+
+      if (!isValidIdentifierForEcosystem("solana", deployment.programId)) {
+        issues.push(
+          createIssue(
+            "solana-programs.json",
+            `[${programIndex}].deployments[${deploymentIndex}].programId`,
+            `Invalid Solana program ID for deployment "${deployment.cluster}"`,
+          ),
+        );
+      }
+    });
   });
 }
 

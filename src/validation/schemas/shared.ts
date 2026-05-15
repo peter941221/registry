@@ -33,6 +33,8 @@ export const ecosystemSchema = z.enum([
   "aptos",
 ] satisfies Chain["ecosystem"][]);
 
+export const solanaClusterSchema = z.enum(["mainnet-beta", "devnet"]);
+
 export const httpUrlSchema = z.url({
   protocol: /^https?$/,
   hostname: z.regexes.domain,

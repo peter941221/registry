@@ -17,6 +17,7 @@ Thanks for your interest in contributing to the w3-kit chain and token registry!
 
 - **Add chains** — add new chains to `data/chains.json`
 - **Add tokens** — add new tokens to `data/tokens.json`
+- **Add Solana programs** — add new entries to `data/solana-programs.json`
 - **Add protocol ABIs** — add ABIs for DeFi protocols
 - **Improve domain logic** — better validation, new resolvers
 - **Fix bugs** — check [open issues](https://github.com/w3-kit/registry/issues)
@@ -89,3 +90,25 @@ Each token `chainId` must reference an existing chain entry. Token identifiers a
 - `evm` uses `0x...` 40-byte addresses
 - `solana` uses base58 mint addresses
 - `sui` / `aptos` accept Move-style type identifiers such as `0x2::sui::SUI`
+
+## Adding a Solana program
+
+Add an entry to `data/solana-programs.json`:
+
+```json
+{
+  "key": "spl-token",
+  "name": "SPL Token Program",
+  "ecosystem": "solana",
+  "deployments": [
+    {
+      "cluster": "mainnet-beta",
+      "chainId": 101,
+      "programId": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+    }
+  ],
+  "learn": ""
+}
+```
+
+Use one semantic program per entry, then list per-cluster deployments under `deployments[]`. Each deployment must reference a Solana chain entry and use a valid base58 program ID.

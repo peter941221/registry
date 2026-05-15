@@ -11,6 +11,7 @@
       "types": "./dist/index.d.ts"
     },
     "./data/chains.json": "./data/chains.json",
+    "./data/solana-programs.json": "./data/solana-programs.json",
     "./data/tokens.json": "./data/tokens.json"
   },
   "files": [

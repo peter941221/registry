@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import chainsData from "../../data/chains.json" with { type: "json" };
+import solanaProgramsData from "../../data/solana-programs.json" with { type: "json" };
 import tokensData from "../../data/tokens.json" with { type: "json" };
 import {
   formatValidationIssues,
@@ -94,6 +95,7 @@ describe("registry validation", () => {
 function cloneRegistryData() {
   return {
     chains: structuredClone(chainsData),
+    solanaPrograms: structuredClone(solanaProgramsData),
     tokens: structuredClone(tokensData),
   };
 }

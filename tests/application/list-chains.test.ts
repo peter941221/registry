@@ -1,5 +1,12 @@
 import { describe, it, expect } from "vitest";
-import { getAllChains, getChain, getChainsByEcosystem, getAllTokens, getToken, getTokensByChain } from "../../src/index.js";
+import {
+  getAllChains,
+  getChain,
+  getChainsByEcosystem,
+  getAllTokens,
+  getToken,
+  getTokensByChain,
+} from "../../src/index.js";
 
 describe("Public API", () => {
   it("getAllChains returns non-empty array", () => {
