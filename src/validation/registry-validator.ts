@@ -4,6 +4,7 @@ import tokensData from "../../data/tokens.json" with { type: "json" };
 import type { Chain } from "../domain/entities/chain.js";
 import type { SolanaProgram } from "../domain/entities/solana-program.js";
 import type { Token } from "../domain/entities/token.js";
+import type { SolanaCluster } from "../domain/value-objects/solana-cluster.js";
 import { ZodError, type ZodIssue } from "zod";
 import { chainSchema } from "./schemas/chain-schema.js";
 import { isValidIdentifierForEcosystem, nonEmptyStringSchema } from "./schemas/shared.js";
@@ -22,11 +23,6 @@ export interface RegistryDataInput {
   solanaPrograms: unknown;
   tokens: unknown;
 }
-
-const SOLANA_CHAIN_ID_BY_CLUSTER = {
-  "mainnet-beta": 101,
-  devnet: 103,
-} as const;
 
 export function validateRegistry() {
   return validateRegistryData({
@@ -175,12 +171,21 @@ function validateSolanaProgramDeployments(
         );
       }
 
-      if (deployment.chainId !== SOLANA_CHAIN_ID_BY_CLUSTER[deployment.cluster]) {
+      const inferredCluster = inferSolanaCluster(chain);
+      if (!inferredCluster) {
         issues.push(
           createIssue(
             "solana-programs.json",
             `[${programIndex}].deployments[${deploymentIndex}].chainId`,
-            `Cluster "${deployment.cluster}" must use chainId "${SOLANA_CHAIN_ID_BY_CLUSTER[deployment.cluster]}"`,
+            `Unable to infer Solana cluster for chainId "${deployment.chainId}" from chains.json`,
+          ),
+        );
+      } else if (deployment.cluster !== inferredCluster) {
+        issues.push(
+          createIssue(
+            "solana-programs.json",
+            `[${programIndex}].deployments[${deploymentIndex}].cluster`,
+            `ChainId "${deployment.chainId}" maps to cluster "${inferredCluster}", not "${deployment.cluster}"`,
           ),
         );
       }
@@ -219,6 +224,36 @@ function validateSolanaProgramDeployments(
     messageSelector: (value) => `Duplicate deployment "${value}" across Solana programs`,
     issues,
   });
+}
+
+function inferSolanaCluster(chain: Chain): SolanaCluster | null {
+  if (chain.ecosystem !== "solana") {
+    return null;
+  }
+
+  const metadata = [
+    chain.name,
+    chain.shortName,
+    ...chain.rpcUrls,
+    ...chain.blockExplorers,
+    ...chain.faucets,
+  ]
+    .join(" ")
+    .toLowerCase();
+
+  if (metadata.includes("mainnet-beta")) {
+    return "mainnet-beta";
+  }
+
+  if (metadata.includes("devnet")) {
+    return "devnet";
+  }
+
+  if (!chain.testnet && chain.shortName === "sol") {
+    return "mainnet-beta";
+  }
+
+  return null;
 }
 
 function validateTokenChainReferences(chains: Chain[], tokens: Token[], issues: ValidationIssue[]) {

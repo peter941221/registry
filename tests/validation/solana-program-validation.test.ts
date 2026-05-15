@@ -69,8 +69,34 @@ describe("Solana program validation", () => {
       expect.arrayContaining([
         expect.objectContaining({
           file: "solana-programs.json",
-          path: "[0].deployments[0].chainId",
-          message: 'Cluster "mainnet-beta" must use chainId "101"',
+          path: "[0].deployments[0].cluster",
+          message: 'ChainId "103" maps to cluster "devnet", not "mainnet-beta"',
+        }),
+      ]),
+    );
+  });
+
+  it("rejects Solana chains whose cluster cannot be inferred from chain metadata", () => {
+    const data = cloneRegistryData();
+    const devnetChainIndex = data.chains.findIndex((chain) => chain.chainId === 103);
+
+    data.chains[devnetChainIndex] = {
+      ...data.chains[devnetChainIndex],
+      name: "Solana Unknown",
+      shortName: "sol-unknown",
+      rpcUrls: ["https://api.custom-solana.example"],
+      blockExplorers: ["https://explorer.custom-solana.example"],
+      faucets: [],
+    };
+
+    const issues = validateRegistryData(data);
+
+    expect(issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          file: "solana-programs.json",
+          path: "[0].deployments[1].chainId",
+          message: 'Unable to infer Solana cluster for chainId "103" from chains.json',
         }),
       ]),
     );
