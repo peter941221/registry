@@ -20,18 +20,24 @@ export class JsonSolanaProgramRepository implements SolanaProgramRepository {
 
   getByCluster(cluster: SolanaCluster): SolanaProgram[] {
     return this.solanaPrograms
-      .map((program) => ({
-        ...program,
-        deployments: program.deployments.filter((deployment) => deployment.cluster === cluster),
-      }))
+      .map((program) => this.toClusterScopedProgram(program, cluster))
       .filter((program) => program.deployments.length > 0);
   }
 
   getByAddress(programId: string, cluster: SolanaCluster): SolanaProgram | undefined {
-    return this.solanaPrograms.find((program) =>
+    const program = this.solanaPrograms.find((program) =>
       program.deployments.some(
         (deployment) => deployment.cluster === cluster && deployment.programId === programId,
       ),
     );
+
+    return program ? this.toClusterScopedProgram(program, cluster) : undefined;
+  }
+
+  private toClusterScopedProgram(program: SolanaProgram, cluster: SolanaCluster): SolanaProgram {
+    return {
+      ...program,
+      deployments: program.deployments.filter((deployment) => deployment.cluster === cluster),
+    };
   }
 }

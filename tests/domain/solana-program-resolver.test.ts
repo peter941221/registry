@@ -13,10 +13,17 @@ describe("SolanaProgramResolver", () => {
   it("resolves by address and cluster", () => {
     const program = resolver.resolveByAddress(
       "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
-      "mainnet-beta",
+      "devnet",
     );
     expect(program).toBeDefined();
     expect(program?.key).toBe("spl-token");
+    expect(program?.deployments).toEqual([
+      {
+        cluster: "devnet",
+        chainId: 103,
+        programId: "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+      },
+    ]);
   });
 
   it("returns undefined for unknown keys", () => {

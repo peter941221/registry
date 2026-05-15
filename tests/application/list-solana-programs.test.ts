@@ -32,6 +32,13 @@ describe("Solana program public API", () => {
     );
     expect(program).toBeDefined();
     expect(program?.key).toBe("raydium-amm-v4");
+    expect(program?.deployments).toEqual([
+      {
+        cluster: "mainnet-beta",
+        chainId: 101,
+        programId: "675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8",
+      },
+    ]);
   });
 
   it("getSolanaProgramByAddress returns undefined for unknown deployments", () => {
