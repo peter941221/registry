@@ -27,6 +27,16 @@ const evmChains = getChainsByEcosystem("evm");
 const usdc = getToken("USDC");
 ```
 
+## Validation
+
+Registry data is validated in CI before merge. Run the validation gate locally with:
+
+```bash
+npm run validate
+```
+
+The validator checks schema shape, URLs, chain references, duplicate identifiers, and ecosystem-specific token identifiers.
+
 ## API
 
 | Function | Description |
