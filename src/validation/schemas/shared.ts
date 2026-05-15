@@ -4,7 +4,7 @@ import { Address } from "../../domain/value-objects/address.js";
 import { ChainId } from "../../domain/value-objects/chain-id.js";
 
 const MOVE_TYPE_IDENTIFIER_REGEX =
-  /^0x[0-9a-fA-F]+(?:::[A-Za-z_][A-Za-z0-9_]*::[A-Za-z_][A-Za-z0-9_]*)?$/;
+  /^0x[0-9a-fA-F]+::[A-Za-z_][A-Za-z0-9_]*::[A-Za-z_][A-Za-z0-9_]*$/;
 
 const BITCOIN_ADDRESS_REGEX = /^(bc1|[13])[a-zA-HJ-NP-Z0-9]{20,}$/;
 

@@ -18,7 +18,8 @@
     "data"
   ],
   "scripts": {
-    "build": "tsc",
+    "clean:dist": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\"",
+    "build": "npm run clean:dist && tsc -p tsconfig.build.json",
     "test": "vitest run",
     "test:watch": "vitest watch",
     "validate": "vitest run tests/validation",

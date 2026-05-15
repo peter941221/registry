@@ -1,3 +1,4 @@
+import { describe, expect, it } from "vitest";
 import chainsData from "../../data/chains.json" with { type: "json" };
 import tokensData from "../../data/tokens.json" with { type: "json" };
 import {
@@ -75,6 +76,17 @@ describe("registry validation", () => {
 
     expect(formatValidationIssues(issues)).toContain(
       'tokens.json:[0].chains[0].address - Invalid evm token identifier for chainId "1"',
+    );
+  });
+
+  it("rejects bare addresses for move-based token identifiers", () => {
+    const data = cloneRegistryData();
+    data.tokens[15].chains[0].address = "0x2";
+
+    const issues = validateRegistryData(data);
+
+    expect(formatValidationIssues(issues)).toContain(
+      'tokens.json:[15].chains[0].address - Invalid sui token identifier for chainId "78272106"',
     );
   });
 });
