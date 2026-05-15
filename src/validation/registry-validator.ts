@@ -23,6 +23,11 @@ export interface RegistryDataInput {
   tokens: unknown;
 }
 
+const SOLANA_CHAIN_ID_BY_CLUSTER = {
+  "mainnet-beta": 101,
+  devnet: 103,
+} as const;
+
 export function validateRegistry() {
   return validateRegistryData({
     chains: chainsData,
@@ -132,12 +137,22 @@ function validateSolanaProgramDeployments(
   issues: ValidationIssue[],
 ) {
   const chainsById = new Map<number, Chain>(chains.map((chain) => [chain.chainId, chain]));
-  const seenDeployments = new Map<string, number>();
+  const deploymentEntries: Array<{
+    programIndex: number;
+    deploymentIndex: number;
+    deploymentKey: string;
+  }> = [];
 
   solanaPrograms.forEach((program, programIndex) => {
     const seenProgramClusters = new Set<string>();
 
     program.deployments.forEach((deployment, deploymentIndex) => {
+      deploymentEntries.push({
+        programIndex,
+        deploymentIndex,
+        deploymentKey: `${deployment.cluster}:${deployment.programId}`,
+      });
+
       const chain = chainsById.get(deployment.chainId);
       if (!chain) {
         issues.push(
@@ -160,31 +175,14 @@ function validateSolanaProgramDeployments(
         );
       }
 
-      if (
-        (deployment.cluster === "mainnet-beta" && chain.testnet) ||
-        (deployment.cluster === "devnet" && !chain.testnet)
-      ) {
+      if (deployment.chainId !== SOLANA_CHAIN_ID_BY_CLUSTER[deployment.cluster]) {
         issues.push(
           createIssue(
             "solana-programs.json",
-            `[${programIndex}].deployments[${deploymentIndex}].cluster`,
-            `Cluster "${deployment.cluster}" does not match chainId "${deployment.chainId}"`,
+            `[${programIndex}].deployments[${deploymentIndex}].chainId`,
+            `Cluster "${deployment.cluster}" must use chainId "${SOLANA_CHAIN_ID_BY_CLUSTER[deployment.cluster]}"`,
           ),
         );
-      }
-
-      const deploymentKey = `${deployment.cluster}:${deployment.programId}`;
-      const existingOwner = seenDeployments.get(deploymentKey);
-      if (existingOwner !== undefined) {
-        issues.push(
-          createIssue(
-            "solana-programs.json",
-            `[${programIndex}].deployments[${deploymentIndex}].programId`,
-            `Duplicate deployment "${deploymentKey}" across Solana programs`,
-          ),
-        );
-      } else {
-        seenDeployments.set(deploymentKey, programIndex);
       }
 
       const clusterChainKey = `${deployment.cluster}:${deployment.chainId}`;
@@ -210,6 +208,16 @@ function validateSolanaProgramDeployments(
         );
       }
     });
+  });
+
+  addDuplicateIssues({
+    file: "solana-programs.json",
+    entries: deploymentEntries,
+    keySelector: (entry) => entry.deploymentKey,
+    pathSelector: (entryIndex) =>
+      `[${deploymentEntries[entryIndex].programIndex}].deployments[${deploymentEntries[entryIndex].deploymentIndex}].programId`,
+    messageSelector: (value) => `Duplicate deployment "${value}" across Solana programs`,
+    issues,
   });
 }
 

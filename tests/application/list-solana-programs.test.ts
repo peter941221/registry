@@ -19,9 +19,10 @@ describe("Solana program public API", () => {
   it("getSolanaProgramsByCluster filters by cluster", () => {
     const devnetPrograms = getSolanaProgramsByCluster("devnet");
     expect(devnetPrograms.length).toBeGreaterThan(0);
-    devnetPrograms.forEach((program) =>
-      expect(program.deployments.some((deployment) => deployment.cluster === "devnet")).toBe(true),
-    );
+    devnetPrograms.forEach((program) => {
+      expect(program.deployments.length).toBeGreaterThan(0);
+      expect(program.deployments.every((deployment) => deployment.cluster === "devnet")).toBe(true);
+    });
   });
 
   it("getSolanaProgramByAddress reverse-looks up a deployment", () => {

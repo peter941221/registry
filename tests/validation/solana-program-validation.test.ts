@@ -58,6 +58,54 @@ describe("Solana program validation", () => {
       ]),
     );
   });
+
+  it("rejects cluster and chainId mismatches", () => {
+    const data = cloneRegistryData();
+    data.solanaPrograms[0].deployments[0].chainId = 103;
+
+    const issues = validateRegistryData(data);
+
+    expect(issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          file: "solana-programs.json",
+          path: "[0].deployments[0].chainId",
+          message: 'Cluster "mainnet-beta" must use chainId "101"',
+        }),
+      ]),
+    );
+  });
+
+  it("reports duplicate deployments for every conflicting entry", () => {
+    const data = cloneRegistryData();
+    data.solanaPrograms.push({
+      ...structuredClone(data.solanaPrograms[0]),
+      key: "system-program-copy",
+    });
+
+    const issues = validateRegistryData(data);
+
+    expect(issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          file: "solana-programs.json",
+          path: "[0].deployments[0].programId",
+        }),
+        expect.objectContaining({
+          file: "solana-programs.json",
+          path: "[0].deployments[1].programId",
+        }),
+        expect.objectContaining({
+          file: "solana-programs.json",
+          path: `[${data.solanaPrograms.length - 1}].deployments[0].programId`,
+        }),
+        expect.objectContaining({
+          file: "solana-programs.json",
+          path: `[${data.solanaPrograms.length - 1}].deployments[1].programId`,
+        }),
+      ]),
+    );
+  });
 });
 
 function cloneRegistryData() {

@@ -19,9 +19,12 @@ export class JsonSolanaProgramRepository implements SolanaProgramRepository {
   }
 
   getByCluster(cluster: SolanaCluster): SolanaProgram[] {
-    return this.solanaPrograms.filter((program) =>
-      program.deployments.some((deployment) => deployment.cluster === cluster),
-    );
+    return this.solanaPrograms
+      .map((program) => ({
+        ...program,
+        deployments: program.deployments.filter((deployment) => deployment.cluster === cluster),
+      }))
+      .filter((program) => program.deployments.length > 0);
   }
 
   getByAddress(programId: string, cluster: SolanaCluster): SolanaProgram | undefined {
