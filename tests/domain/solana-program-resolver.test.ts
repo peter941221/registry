@@ -17,13 +17,19 @@ describe("SolanaProgramResolver", () => {
     );
     expect(program).toBeDefined();
     expect(program?.key).toBe("spl-token");
-    expect(program?.deployments).toEqual([
-      {
-        cluster: "devnet",
-        chainId: 103,
-        programId: "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
-      },
-    ]);
+    expect(program?.deployments).toHaveLength(2);
+    expect(program?.deployments).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          chainId: 101,
+          programId: "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+        }),
+        expect.objectContaining({
+          chainId: 103,
+          programId: "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+        }),
+      ]),
+    );
   });
 
   it("returns undefined for unknown keys", () => {

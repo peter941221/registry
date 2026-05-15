@@ -1,7 +1,4 @@
-import type { SolanaCluster } from "../value-objects/solana-cluster.js";
-
 export interface SolanaProgramDeployment {
-  cluster: SolanaCluster;
   chainId: number;
   programId: string;
 }

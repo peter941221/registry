@@ -59,7 +59,7 @@ describe("Solana program validation", () => {
     );
   });
 
-  it("rejects cluster and chainId mismatches", () => {
+  it("rejects duplicate chain deployments within a program", () => {
     const data = cloneRegistryData();
     data.solanaPrograms[0].deployments[0].chainId = 103;
 
@@ -69,34 +69,26 @@ describe("Solana program validation", () => {
       expect.arrayContaining([
         expect.objectContaining({
           file: "solana-programs.json",
-          path: "[0].deployments[0].cluster",
-          message: 'ChainId "103" maps to cluster "devnet", not "mainnet-beta"',
+          path: "[0].deployments[1].chainId",
+          message: 'Duplicate deployment chainId "103" in program "system-program"',
         }),
       ]),
     );
   });
 
-  it("rejects Solana chains whose cluster cannot be inferred from chain metadata", () => {
+  it("requires Solana chains to declare cluster metadata", () => {
     const data = cloneRegistryData();
-    const devnetChainIndex = data.chains.findIndex((chain) => chain.chainId === 103);
-
-    data.chains[devnetChainIndex] = {
-      ...data.chains[devnetChainIndex],
-      name: "Solana Unknown",
-      shortName: "sol-unknown",
-      rpcUrls: ["https://api.custom-solana.example"],
-      blockExplorers: ["https://explorer.custom-solana.example"],
-      faucets: [],
-    };
+    const solanaChainIndex = data.chains.findIndex((chain) => chain.chainId === 101);
+    delete data.chains[solanaChainIndex].cluster;
 
     const issues = validateRegistryData(data);
 
     expect(issues).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
-          file: "solana-programs.json",
-          path: "[0].deployments[1].chainId",
-          message: 'Unable to infer Solana cluster for chainId "103" from chains.json',
+          file: "chains.json",
+          path: `[${solanaChainIndex}].cluster`,
+          message: 'Solana chains must declare a cluster ("mainnet-beta" or "devnet")',
         }),
       ]),
     );

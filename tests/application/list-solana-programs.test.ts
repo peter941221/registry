@@ -20,9 +20,11 @@ describe("Solana program public API", () => {
     const devnetPrograms = getSolanaProgramsByCluster("devnet");
     expect(devnetPrograms.length).toBeGreaterThan(0);
     devnetPrograms.forEach((program) => {
-      expect(program.deployments.length).toBeGreaterThan(0);
-      expect(program.deployments.every((deployment) => deployment.cluster === "devnet")).toBe(true);
+      expect(program.deployments.some((deployment) => deployment.chainId === 103)).toBe(true);
     });
+
+    const splToken = devnetPrograms.find((program) => program.key === "spl-token");
+    expect(splToken?.deployments).toHaveLength(2);
   });
 
   it("getSolanaProgramByAddress reverse-looks up a deployment", () => {
@@ -32,13 +34,11 @@ describe("Solana program public API", () => {
     );
     expect(program).toBeDefined();
     expect(program?.key).toBe("raydium-amm-v4");
-    expect(program?.deployments).toEqual([
-      {
-        cluster: "mainnet-beta",
-        chainId: 101,
-        programId: "675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8",
-      },
-    ]);
+    expect(program?.deployments).toHaveLength(1);
+    expect(program?.deployments[0]).toEqual({
+      chainId: 101,
+      programId: "675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8",
+    });
   });
 
   it("getSolanaProgramByAddress returns undefined for unknown deployments", () => {

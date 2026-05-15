@@ -102,7 +102,6 @@ Add an entry to `data/solana-programs.json`:
   "ecosystem": "solana",
   "deployments": [
     {
-      "cluster": "mainnet-beta",
       "chainId": 101,
       "programId": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
     }
@@ -111,4 +110,4 @@ Add an entry to `data/solana-programs.json`:
 }
 ```
 
-Use one semantic program per entry, then list per-cluster deployments under `deployments[]`. Each deployment must reference a Solana chain entry and use a valid base58 program ID.
+Use one semantic program per entry, then list per-chain deployments under `deployments[]`. Each deployment must reference a Solana chain entry and use a valid base58 program ID.

@@ -4,7 +4,6 @@ import tokensData from "../../data/tokens.json" with { type: "json" };
 import type { Chain } from "../domain/entities/chain.js";
 import type { SolanaProgram } from "../domain/entities/solana-program.js";
 import type { Token } from "../domain/entities/token.js";
-import type { SolanaCluster } from "../domain/value-objects/solana-cluster.js";
 import { ZodError, type ZodIssue } from "zod";
 import { chainSchema } from "./schemas/chain-schema.js";
 import { isValidIdentifierForEcosystem, nonEmptyStringSchema } from "./schemas/shared.js";
@@ -140,13 +139,13 @@ function validateSolanaProgramDeployments(
   }> = [];
 
   solanaPrograms.forEach((program, programIndex) => {
-    const seenProgramClusters = new Set<string>();
+    const seenProgramChainIds = new Set<number>();
 
     program.deployments.forEach((deployment, deploymentIndex) => {
       deploymentEntries.push({
         programIndex,
         deploymentIndex,
-        deploymentKey: `${deployment.cluster}:${deployment.programId}`,
+        deploymentKey: deployment.programId,
       });
 
       const chain = chainsById.get(deployment.chainId);
@@ -171,36 +170,16 @@ function validateSolanaProgramDeployments(
         );
       }
 
-      const inferredCluster = inferSolanaCluster(chain);
-      if (!inferredCluster) {
+      if (seenProgramChainIds.has(deployment.chainId)) {
         issues.push(
           createIssue(
             "solana-programs.json",
             `[${programIndex}].deployments[${deploymentIndex}].chainId`,
-            `Unable to infer Solana cluster for chainId "${deployment.chainId}" from chains.json`,
-          ),
-        );
-      } else if (deployment.cluster !== inferredCluster) {
-        issues.push(
-          createIssue(
-            "solana-programs.json",
-            `[${programIndex}].deployments[${deploymentIndex}].cluster`,
-            `ChainId "${deployment.chainId}" maps to cluster "${inferredCluster}", not "${deployment.cluster}"`,
-          ),
-        );
-      }
-
-      const clusterChainKey = `${deployment.cluster}:${deployment.chainId}`;
-      if (seenProgramClusters.has(clusterChainKey)) {
-        issues.push(
-          createIssue(
-            "solana-programs.json",
-            `[${programIndex}].deployments[${deploymentIndex}].cluster`,
-            `Duplicate deployment cluster/chain pair "${clusterChainKey}" in program "${program.key}"`,
+            `Duplicate deployment chainId "${deployment.chainId}" in program "${program.key}"`,
           ),
         );
       } else {
-        seenProgramClusters.add(clusterChainKey);
+        seenProgramChainIds.add(deployment.chainId);
       }
 
       if (!isValidIdentifierForEcosystem("solana", deployment.programId)) {
@@ -208,7 +187,7 @@ function validateSolanaProgramDeployments(
           createIssue(
             "solana-programs.json",
             `[${programIndex}].deployments[${deploymentIndex}].programId`,
-            `Invalid Solana program ID for deployment "${deployment.cluster}"`,
+            `Invalid Solana program ID for chainId "${deployment.chainId}"`,
           ),
         );
       }
@@ -218,42 +197,15 @@ function validateSolanaProgramDeployments(
   addDuplicateIssues({
     file: "solana-programs.json",
     entries: deploymentEntries,
-    keySelector: (entry) => entry.deploymentKey,
+    keySelector: (entry) => {
+      const deployment = solanaPrograms[entry.programIndex].deployments[entry.deploymentIndex];
+      return `${deployment.chainId}:${entry.deploymentKey}`;
+    },
     pathSelector: (entryIndex) =>
       `[${deploymentEntries[entryIndex].programIndex}].deployments[${deploymentEntries[entryIndex].deploymentIndex}].programId`,
     messageSelector: (value) => `Duplicate deployment "${value}" across Solana programs`,
     issues,
   });
-}
-
-function inferSolanaCluster(chain: Chain): SolanaCluster | null {
-  if (chain.ecosystem !== "solana") {
-    return null;
-  }
-
-  const metadata = [
-    chain.name,
-    chain.shortName,
-    ...chain.rpcUrls,
-    ...chain.blockExplorers,
-    ...chain.faucets,
-  ]
-    .join(" ")
-    .toLowerCase();
-
-  if (metadata.includes("mainnet-beta")) {
-    return "mainnet-beta";
-  }
-
-  if (metadata.includes("devnet")) {
-    return "devnet";
-  }
-
-  if (!chain.testnet && chain.shortName === "sol") {
-    return "mainnet-beta";
-  }
-
-  return null;
 }
 
 function validateTokenChainReferences(chains: Chain[], tokens: Token[], issues: ValidationIssue[]) {

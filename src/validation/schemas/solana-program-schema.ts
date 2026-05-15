@@ -1,8 +1,7 @@
 import { z } from "zod";
-import { chainIdSchema, nonEmptyStringSchema, solanaClusterSchema } from "./shared.js";
+import { chainIdSchema, nonEmptyStringSchema } from "./shared.js";
 
 export const solanaProgramDeploymentSchema = z.object({
-  cluster: solanaClusterSchema,
   chainId: chainIdSchema,
   programId: nonEmptyStringSchema,
 });
