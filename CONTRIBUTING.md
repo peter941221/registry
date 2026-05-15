@@ -7,10 +7,11 @@ Thanks for your interest in contributing to the w3-kit chain and token registry!
 1. Fork the repo
 2. Create a branch (`git checkout -b my-change`)
 3. Make your changes
-4. Run tests: `npm test`
-5. Run build: `npm run build`
-6. Commit and push
-7. Open a pull request
+4. Run validation: `npm run validate`
+5. Run tests: `npm test`
+6. Run build: `npm run build`
+7. Commit and push
+8. Open a pull request
 
 ## What to contribute
 
@@ -36,6 +37,7 @@ This repo uses Domain-Driven Design (DDD):
 git clone https://github.com/YOUR_USERNAME/registry.git
 cd registry
 npm install
+npm run validate
 npm run build
 npm test
 ```
@@ -43,7 +45,7 @@ npm test
 ### Run all CI checks locally
 
 ```bash
-npm run typecheck && npm run lint && npm run format:check && npm run build && npm test
+npm run typecheck && npm run lint && npm run format:check && npm run validate && npm run build && npm test
 ```
 
 ## Adding a chain
@@ -65,6 +67,8 @@ Add an entry to `data/chains.json`:
 }
 ```
 
+Before opening a PR, run `npm run validate` to ensure the new entry matches the registry schema and does not duplicate an existing identifier.
+
 ## Adding a token
 
 Add an entry to `data/tokens.json`:
@@ -79,3 +83,9 @@ Add an entry to `data/tokens.json`:
   "learn": ""
 }
 ```
+
+Each token `chainId` must reference an existing chain entry. Token identifiers are validated against the referenced chain ecosystem:
+
+- `evm` uses `0x...` 40-byte addresses
+- `solana` uses base58 mint addresses
+- `sui` / `aptos` accept Move-style type identifiers such as `0x2::sui::SUI`

@@ -1,0 +1,216 @@
+import chainsData from "../../data/chains.json" with { type: "json" };
+import tokensData from "../../data/tokens.json" with { type: "json" };
+import type { Chain } from "../domain/entities/chain.js";
+import type { Token } from "../domain/entities/token.js";
+import { ZodError, type ZodIssue } from "zod";
+import { chainSchema } from "./schemas/chain-schema.js";
+import { isValidIdentifierForEcosystem, nonEmptyStringSchema } from "./schemas/shared.js";
+import { tokenSchema } from "./schemas/token-schema.js";
+
+export interface ValidationIssue {
+  file: "chains.json" | "tokens.json";
+  path: string;
+  message: string;
+  severity: "error";
+}
+
+export interface RegistryDataInput {
+  chains: unknown;
+  tokens: unknown;
+}
+
+export function validateRegistry() {
+  return validateRegistryData({
+    chains: chainsData,
+    tokens: tokensData,
+  });
+}
+
+export function validateRegistryData(data: RegistryDataInput) {
+  const issues: ValidationIssue[] = [];
+  const parsedChains = parseFile("chains.json", data.chains, chainSchema, issues);
+  const parsedTokens = parseFile("tokens.json", data.tokens, tokenSchema, issues);
+
+  if (!parsedChains || !parsedTokens) {
+    return issues;
+  }
+
+  validateChainUniqueness(parsedChains, issues);
+  validateTokenUniqueness(parsedTokens, issues);
+  validateTokenChainReferences(parsedChains, parsedTokens, issues);
+
+  return issues;
+}
+
+export function formatValidationIssues(issues: ValidationIssue[]) {
+  return issues.map((issue) => `${issue.file}:${issue.path} - ${issue.message}`).join("\n");
+}
+
+function parseFile<T>(
+  file: ValidationIssue["file"],
+  payload: unknown,
+  itemSchema: {
+    array(): {
+      safeParse(
+        input: unknown,
+      ): { success: true; data: T[] } | { success: false; error: ZodError<T[]> };
+    };
+  },
+  issues: ValidationIssue[],
+) {
+  const result = itemSchema.array().safeParse(payload);
+  if (!result.success) {
+    issues.push(...toValidationIssues(file, result.error.issues));
+    return null;
+  }
+  return result.data;
+}
+
+function validateChainUniqueness(chains: Chain[], issues: ValidationIssue[]) {
+  addDuplicateIssues({
+    file: "chains.json",
+    entries: chains,
+    keySelector: (chain) => String(chain.chainId),
+    pathSelector: (index) => `[${index}].chainId`,
+    messageSelector: (value) => `Duplicate chainId "${value}"`,
+    issues,
+  });
+  addDuplicateIssues({
+    file: "chains.json",
+    entries: chains,
+    keySelector: (chain) => chain.shortName,
+    pathSelector: (index) => `[${index}].shortName`,
+    messageSelector: (value) => `Duplicate shortName "${value}"`,
+    issues,
+    normalize: (value) => value.toLowerCase(),
+  });
+}
+
+function validateTokenUniqueness(tokens: Token[], issues: ValidationIssue[]) {
+  addDuplicateIssues({
+    file: "tokens.json",
+    entries: tokens,
+    keySelector: (token) => token.symbol,
+    pathSelector: (index) => `[${index}].symbol`,
+    messageSelector: (value) => `Duplicate symbol "${value}"`,
+    issues,
+    normalize: (value) => value.toUpperCase(),
+  });
+}
+
+function validateTokenChainReferences(chains: Chain[], tokens: Token[], issues: ValidationIssue[]) {
+  const chainsById = new Map<number, Chain>(chains.map((chain) => [chain.chainId, chain]));
+
+  tokens.forEach((token, tokenIndex) => {
+    const seenChainIds = new Set<number>();
+
+    token.chains.forEach((entry, chainIndex) => {
+      const chain = chainsById.get(entry.chainId);
+      if (!chain) {
+        issues.push(
+          createIssue(
+            "tokens.json",
+            `[${tokenIndex}].chains[${chainIndex}].chainId`,
+            `Unknown chainId "${entry.chainId}" for token "${token.symbol}"`,
+          ),
+        );
+        return;
+      }
+
+      if (seenChainIds.has(entry.chainId)) {
+        issues.push(
+          createIssue(
+            "tokens.json",
+            `[${tokenIndex}].chains[${chainIndex}].chainId`,
+            `Duplicate chainId "${entry.chainId}" in token "${token.symbol}"`,
+          ),
+        );
+      }
+      seenChainIds.add(entry.chainId);
+
+      if (!isValidIdentifierForEcosystem(chain.ecosystem, entry.address)) {
+        issues.push(
+          createIssue(
+            "tokens.json",
+            `[${tokenIndex}].chains[${chainIndex}].address`,
+            `Invalid ${chain.ecosystem} token identifier for chainId "${chain.chainId}"`,
+          ),
+        );
+      }
+    });
+  });
+}
+
+function addDuplicateIssues<T>({
+  file,
+  entries,
+  keySelector,
+  pathSelector,
+  messageSelector,
+  issues,
+  normalize = (value) => value,
+}: {
+  file: ValidationIssue["file"];
+  entries: T[];
+  keySelector: (entry: T) => string;
+  pathSelector: (index: number) => string;
+  messageSelector: (value: string) => string;
+  issues: ValidationIssue[];
+  normalize?: (value: string) => string;
+}) {
+  const indexesByKey = new Map<string, number[]>();
+
+  entries.forEach((entry, index) => {
+    const rawValue = keySelector(entry);
+    if (!nonEmptyStringSchema.safeParse(rawValue).success) {
+      return;
+    }
+
+    const normalized = normalize(rawValue);
+    const indexes = indexesByKey.get(normalized) ?? [];
+    indexes.push(index);
+    indexesByKey.set(normalized, indexes);
+  });
+
+  indexesByKey.forEach((indexes) => {
+    if (indexes.length < 2) {
+      return;
+    }
+
+    indexes.forEach((index) => {
+      const value = keySelector(entries[index]);
+      issues.push(createIssue(file, pathSelector(index), messageSelector(value)));
+    });
+  });
+}
+
+function toValidationIssues(file: ValidationIssue["file"], zodIssues: ZodIssue[]) {
+  return zodIssues.map((issue) => createIssue(file, formatPath(issue.path), issue.message));
+}
+
+function formatPath(path: readonly (string | number | symbol)[]) {
+  return path.reduce<string>((current, segment) => {
+    if (typeof segment === "number") {
+      return `${current}[${segment}]`;
+    }
+
+    if (typeof segment === "symbol") {
+      return current;
+    }
+
+    return current ? `${current}.${segment}` : segment;
+  }, "");
+}
+
+function createIssue(
+  file: ValidationIssue["file"],
+  path: string,
+  message: string,
+): ValidationIssue {
+  return {
+    file,
+    path,
+    message,
+    severity: "error",
+  };
+}
